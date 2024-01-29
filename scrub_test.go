@@ -1,7 +1,6 @@
 package scrub
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,20 +8,33 @@ import (
 
 func TestTaggedField(t *testing.T) {
 	primitiveTypeIsUnchanged := func(v any) bool {
-		typ := reflect.TypeOf(v)
-		actual := reflect.New(typ).Interface()
-		expected := reflect.New(typ).Interface()
+		copy := v
+		actual := v
+		expected := copy
 		TaggedFields(actual)
-		return reflect.DeepEqual(actual, expected)
+		return expected == actual
 	}
 
 	t.Run("with a primitive type, leaves the value unchanged", func(t *testing.T) {
-		for _, v := range []any{1, 1.0, "hello"} {
+		primitives := []any{
+			int(1), int8(1), int16(1), int32(1), int64(1),
+			uintptr(1), uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
+			float32(1.0), float64(1.0),
+			"hello",
+		}
+		for _, v := range primitives {
 			vPtr := &v
 			assert.True(t, primitiveTypeIsUnchanged(v))
 			assert.True(t, primitiveTypeIsUnchanged(vPtr))
 			assert.True(t, primitiveTypeIsUnchanged(&vPtr))
 		}
+
+		intPtr := new(int)
+		intDoublePtr := &intPtr
+		*intPtr = 1
+		TaggedFields(intPtr)
+		assert.Equal(t, 1, *intPtr)
+		assert.Equal(t, *intDoublePtr, intPtr)
 	})
 
 	t.Run("nil is handled safely", func(t *testing.T) {
@@ -210,24 +222,34 @@ func TestTaggedField(t *testing.T) {
 }
 
 func TestNamedFields(t *testing.T) {
-	t.Run("with a non-struct type, leaves the value unchanged", func(t *testing.T) {
-		nonStructValues := []any{
-			1,
-			reflect.New(reflect.TypeOf(1)).Interface().(*int),
-			reflect.New(reflect.TypeOf(uint(1))).Interface().(*uint),
-			reflect.New(reflect.TypeOf(uintptr(1))).Interface().(*uintptr),
-			*reflect.New(reflect.TypeOf(uintptr(1))).Interface().(*uintptr),
-			1.0,
-			reflect.New(reflect.TypeOf(1.0)).Interface().(*float64),
+	primitiveTypeIsUnchanged := func(v any) bool {
+		copy := v
+		actual := v
+		expected := copy
+		NamedFields(actual, []string{}...)
+		return expected == actual
+	}
+
+	t.Run("with a primitive type, leaves the value unchanged", func(t *testing.T) {
+		primitives := []any{
+			int(1), int8(1), int16(1), int32(1), int64(1),
+			uintptr(1), uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
+			float32(1.0), float64(1.0),
 			"hello",
-			reflect.New(reflect.TypeOf("hello")).Interface().(*string),
+		}
+		for _, v := range primitives {
+			vPtr := &v
+			assert.True(t, primitiveTypeIsUnchanged(v))
+			assert.True(t, primitiveTypeIsUnchanged(vPtr))
+			assert.True(t, primitiveTypeIsUnchanged(&vPtr))
 		}
 
-		for _, v := range nonStructValues {
-			copy := v
-			NamedFields(&copy, []string{}...)
-			assert.Equal(t, v, copy)
-		}
+		intPtr := new(int)
+		intDoublePtr := &intPtr
+		*intPtr = 1
+		NamedFields(intPtr, []string{}...)
+		assert.Equal(t, 1, *intPtr)
+		assert.Equal(t, *intDoublePtr, intPtr)
 	})
 
 	t.Run("nil is handled safely", func(t *testing.T) {
