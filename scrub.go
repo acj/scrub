@@ -61,6 +61,7 @@ func scrub(src any, shouldScrubFn func(field reflect.StructField) bool) {
 					continue
 				} else {
 					if !structField.IsExported() {
+						// Avoids "cannot return value obtained from unexported field or method" error
 						continue
 					}
 					scrub(field.Interface(), shouldScrubFn)

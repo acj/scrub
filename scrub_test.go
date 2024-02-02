@@ -83,6 +83,31 @@ func TestTaggedField(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	})
 
+	t.Run("with a struct containing an unexported pointer to a struct, leaves the unexported field alone", func(t *testing.T) {
+		type place struct {
+			Name      string `scrub:"true"`
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name  string `scrub:"true"`
+			Age   int
+			place *place
+		}
+		actual := person{Name: "Testy Tester", Age: 26, place: &place{Name: "Testy Tester", Latitude: 1.0, Longitude: 2.0}}
+		expected := person{
+			Name: "",
+			Age:  26,
+			place: &place{
+				Name:      "Testy Tester",
+				Latitude:  1.0,
+				Longitude: 2.0,
+			},
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
 	t.Run("with a struct containing a non-nil pointer to a non-struct, scrubs the tagged fields", func(t *testing.T) {
 		type person struct {
 			Name  string `scrub:"true"`
@@ -448,6 +473,39 @@ func TestNamedFields(t *testing.T) {
 			Age:  26,
 			Place: &place{
 				Name:      "",
+				Latitude:  1.0,
+				Longitude: 2.0,
+			},
+		}
+		NamedFields(&actual, "Name")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing an unexported pointer to a struct, leaves the unexported field alone", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name  string
+			Age   int
+			place *place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			place: &place{
+				Name:      "Testy Tester",
+				Latitude:  1.0,
+				Longitude: 2.0,
+			},
+		}
+		expected := person{
+			Name: "",
+			Age:  26,
+			place: &place{
+				Name:      "Testy Tester",
 				Latitude:  1.0,
 				Longitude: 2.0,
 			},
