@@ -306,7 +306,7 @@ func TestNamedFields(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	})
 
-	t.Run("with a struct containing a non-nil pointer to a non-struct, scrubs the tagged fields", func(t *testing.T) {
+	t.Run("with a struct containing a non-nil pointer to a non-struct, scrubs the named fields", func(t *testing.T) {
 		type person struct {
 			Name  string
 			Age   int
