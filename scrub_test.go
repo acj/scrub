@@ -219,6 +219,156 @@ func TestTaggedField(t *testing.T) {
 		TaggedFields(&actual)
 		assert.Equal(t, expected, actual)
 	})
+
+	t.Run("with a struct containing a tagged slice, scrubs the slice", func(t *testing.T) {
+		type person struct {
+			Name   string `scrub:"true"`
+			Age    int
+			Places []string `scrub:"true"`
+		}
+		actual := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: []string{"earth", "mars"},
+		}
+		expected := person{
+			Name:   "",
+			Age:    26,
+			Places: nil,
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of structs, walks the slice and scrubs any tagged fields on those structs", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64 `scrub:"true"`
+			Longitude float64 `scrub:"true"`
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				{Name: "Place 2", Latitude: 3.14, Longitude: 1.5926},
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []place{
+				{Name: "Place 1", Latitude: 0.0, Longitude: 0.0},
+				{Name: "Place 2", Latitude: 0.0, Longitude: 0.0},
+			},
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of pointers to structs, walks the slice and scrubs any tagged fields on those structs", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64 `scrub:"true"`
+			Longitude float64 `scrub:"true"`
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				{Name: "Place 2", Latitude: 3.14, Longitude: 1.5926},
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 0.0, Longitude: 0.0},
+				{Name: "Place 2", Latitude: 0.0, Longitude: 0.0},
+			},
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a nil slice of pointers to structs, gracefully handles the nil slice", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64 `scrub:"true"`
+			Longitude float64 `scrub:"true"`
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: nil,
+		}
+		expected := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: nil,
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of pointers to structs, gracefully handles nil", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64 `scrub:"true"`
+			Longitude float64 `scrub:"true"`
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				nil,
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 0, Longitude: 0},
+				nil,
+			},
+		}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing an unexported field, leaves the field unchanged", func(t *testing.T) {
+		type person struct {
+			Name  string `scrub:"true"`
+			age   int
+			Place string `scrub:"true"`
+		}
+		actual := person{Name: "Testy Tester", age: 26, Place: "earth"}
+		expected := person{Name: "", age: 26, Place: ""}
+		TaggedFields(&actual)
+		assert.Equal(t, expected, actual)
+	})
 }
 
 func TestNamedFields(t *testing.T) {
@@ -410,6 +560,156 @@ func TestNamedFields(t *testing.T) {
 			Age:   26,
 			Place: nil,
 		}
+		NamedFields(&actual, "Name", "Place")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a named slice, scrubs the slice", func(t *testing.T) {
+		type person struct {
+			Name   string `scrub:"true"`
+			Age    int
+			Places []string `scrub:"true"`
+		}
+		actual := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: []string{"earth", "mars"},
+		}
+		expected := person{
+			Name:   "",
+			Age:    26,
+			Places: nil,
+		}
+		NamedFields(&actual, "Name", "Places")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of structs, walks the slice and scrubs any named fields on those structs", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				{Name: "Place 2", Latitude: 3.14, Longitude: 1.5926},
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []place{
+				{Name: "Place 1", Latitude: 0.0, Longitude: 0.0},
+				{Name: "Place 2", Latitude: 0.0, Longitude: 0.0},
+			},
+		}
+		NamedFields(&actual, "Latitude", "Longitude")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of pointers to structs, walks the slice and scrubs any named fields on those structs", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				{Name: "Place 2", Latitude: 3.14, Longitude: 1.5926},
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 0.0, Longitude: 0.0},
+				{Name: "Place 2", Latitude: 0.0, Longitude: 0.0},
+			},
+		}
+		NamedFields(&actual, "Latitude", "Longitude")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a nil slice of structs, gracefully handles the nil slice", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: nil,
+		}
+		expected := person{
+			Name:   "Testy Tester",
+			Age:    26,
+			Places: nil,
+		}
+		NamedFields(&actual, "Latitude", "Longitude")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing a slice of structs, gracefully handles nil", func(t *testing.T) {
+		type place struct {
+			Name      string
+			Latitude  float64
+			Longitude float64
+		}
+		type person struct {
+			Name   string
+			Age    int
+			Places []*place
+		}
+		actual := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 1.0, Longitude: 2.0},
+				nil,
+			},
+		}
+		expected := person{
+			Name: "Testy Tester",
+			Age:  26,
+			Places: []*place{
+				{Name: "Place 1", Latitude: 0, Longitude: 0},
+				nil,
+			},
+		}
+		NamedFields(&actual, "Latitude", "Longitude")
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("with a struct containing an unexported field, leaves the field unchanged", func(t *testing.T) {
+		type person struct {
+			Name  string `scrub:"true"`
+			age   int
+			Place string `scrub:"true"`
+		}
+		actual := person{Name: "Testy Tester", age: 26, Place: "earth"}
+		expected := person{Name: "", age: 26, Place: ""}
 		NamedFields(&actual, "Name", "Place")
 		assert.Equal(t, expected, actual)
 	})

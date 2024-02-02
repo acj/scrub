@@ -39,37 +39,65 @@ func scrub(src any, shouldScrubFn func(field reflect.StructField) bool) {
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
+		structField := v.Type().Field(i)
 
 		switch field.Kind() {
 		case reflect.Struct:
-			structField := v.Type().Field(i)
 			if shouldScrubFn(structField) {
 				zero := reflect.Zero(field.Type())
 				field.Set(zero)
-			} else {
-				scrub(field.Addr().Interface(), shouldScrubFn)
+				continue
 			}
+
+			scrub(field.Addr().Interface(), shouldScrubFn)
 		case reflect.Ptr:
 			if field.IsNil() {
 				continue
 			}
 			if field.Elem().Kind() == reflect.Struct {
-				structField := v.Type().Field(i)
 				if shouldScrubFn(structField) {
 					zero := reflect.Zero(field.Type())
 					field.Set(zero)
+					continue
 				} else {
+					if !structField.IsExported() {
+						continue
+					}
 					scrub(field.Interface(), shouldScrubFn)
+					return
 				}
-			} else {
+			}
+		case reflect.Slice:
+			if field.IsNil() {
 				continue
 			}
+			if shouldScrubFn(structField) {
+				zero := reflect.Zero(field.Type())
+				field.Set(zero)
+				continue
+			}
+			for j := 0; j < field.Len(); j++ {
+				sliceField := field.Index(j)
+				if sliceField.Kind() == reflect.Struct {
+					scrub(sliceField.Addr().Interface(), shouldScrubFn)
+				}
+				if sliceField.Kind() == reflect.Ptr {
+					if field.Index(j).IsNil() {
+						continue
+					}
+					if sliceField.Elem().Kind() == reflect.Struct {
+						scrub(sliceField.Interface(), shouldScrubFn)
+					}
+				}
+			}
+			continue
 		default:
 			structField := v.Type().Field(i)
 			if shouldScrubFn(structField) {
 				zero := reflect.Zero(field.Type())
 				field.Set(zero)
 			}
+			continue
 		}
 	}
 }
